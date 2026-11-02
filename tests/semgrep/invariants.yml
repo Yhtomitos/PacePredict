@@ -1,0 +1,52 @@
+rules:
+  - id: no-executable-workout-parsing
+    languages: [python]
+    severity: ERROR
+    message: Parse workout data with ast.literal_eval or json.loads, never eval/exec.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: no-unsafe-deserialization
+    languages: [python]
+    severity: ERROR
+    message: Use text-based parsing for external workout records, not pickle or unsafe YAML.
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: yaml.unsafe_load(...)
+      - pattern: yaml.load(...)
+
+  - id: no-unbounded-archive-read
+    languages: [python]
+    severity: ERROR
+    message: Read gzip archives in bounded chunks or iterate records to limit memory use.
+    patterns:
+      - pattern-inside: |
+          with gzip.open(...) as $ARCHIVE:
+            ...
+      - pattern-either:
+          - pattern: $ARCHIVE.read()
+          - pattern: $ARCHIVE.read(-1)
+          - pattern: $ARCHIVE.readlines()
+
+  - id: no-unsafe-archive-extraction
+    languages: [python]
+    severity: ERROR
+    message: Avoid bulk archive extraction; validate member paths before writing files.
+    pattern-either:
+      - pattern: $ARCHIVE.extractall(...)
+      - pattern: shutil.unpack_archive(...)
+
+  - id: no-in-place-workout-output
+    languages: [python]
+    severity: ERROR
+    message: Write a separate temporary output to avoid overwriting the source dataset.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              with $SOURCE.open("rb") as $INPUT, $SOURCE.open("wb") as $OUTPUT:
+                ...
+          - pattern: |
+              with open($PATH, "rb") as $INPUT, open($PATH, "wb") as $OUTPUT:
+                ...
