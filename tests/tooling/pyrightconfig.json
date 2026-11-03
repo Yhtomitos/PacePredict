@@ -1,0 +1,7 @@
+{
+  "include": ["../../main.py", "../../scripts", ".."],
+  "exclude": ["../semgrep", "../../training-data", "../../.venv", "../../.venv-semgrep"],
+  "pythonVersion": "3.10",
+  "extraPaths": ["../.."],
+  "typeCheckingMode": "standard"
+}

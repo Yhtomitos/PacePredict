@@ -1,0 +1,6 @@
+name: PacePredict Python security
+queries:
+  - uses: security-extended
+paths-ignore:
+  - training-data
+  - tests/semgrep
