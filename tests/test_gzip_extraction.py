@@ -31,11 +31,12 @@ class GzipExtractionTests(unittest.TestCase):
         self.archive = self.directory / "running.json.gz"
         self.selected = (
             b"{'sport': 'run', 'id': 2, 'heart_rate': [100, 120]}\n"
-            b'{"sport": "treadmill running", "id": 3}\n'
+            b'{"sport": "run", "id": 3}\n'
         )
         self.source.write_bytes(
             b"{'sport': 'bike', 'id': 1}\n"
             + self.selected
+            + b"{'sport': 'treadmill running', 'id': 5}\n"
             + b"{'sport': 'walk', 'id': 4}\n"
         )
 
@@ -71,6 +72,29 @@ class GzipExtractionTests(unittest.TestCase):
         with patch("gzip.open", side_effect=failure):
             self.filter_fixture()
         validate_gzip(self.archive, expected_records=2)
+
+    def test_default_output_uses_processed_directory(self) -> None:
+        """Create processed storage while preserving the original source."""
+        original = self.source.read_bytes()
+        processed = self.directory / "model-training" / "processed"
+        with patch(
+            "scripts.endomondo_filter_running_workouts.PROCESSED_DIRECTORY",
+            processed,
+        ), contextlib.redirect_stdout(io.StringIO()):
+            result = filter_running(self.source)
+        archive = processed / (self.source.name + ".gz")
+        self.assertEqual(result["destination"], str(archive))
+        self.assertEqual(gzip.decompress(archive.read_bytes()), self.selected)
+        self.assertEqual(self.source.read_bytes(), original)
+
+    def test_output_in_raw_directory_is_rejected(self) -> None:
+        """Reject explicit destinations inside raw storage."""
+        raw = self.directory / "raw"
+        with patch(
+            "scripts.endomondo_filter_running_workouts.RAW_DIRECTORY", raw
+        ), self.assertRaisesRegex(ValueError, "raw storage"):
+            filter_running(self.source, raw / "nested" / "running.json.gz")
+        self.assertFalse(raw.exists())
 
     def test_valid_final_record_without_newline(self) -> None:
         """Preserve a valid final record without a trailing newline."""

@@ -1,0 +1,10 @@
+# Original datasets exceed GitHub's per-file limit. Keep sources locally.
+/training-data/model-training/raw/*
+!/training-data/model-training/raw/README.md
+
+# Interrupted processing must not add incomplete archives to Git.
+/training-data/model-training/processed/*.tmp
+
+.venv*/
+__pycache__/
+.ruff_cache/
