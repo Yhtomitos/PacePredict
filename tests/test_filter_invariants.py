@@ -20,11 +20,12 @@ class FilterRunningTests(unittest.TestCase):
         self.source = Path(temporary.name) / "source.json"
         self.destination = Path(temporary.name) / "running.json.gz"
         self.selected = (
-            b"{'sport': 'run', 'id': 2}\n"
-            b'{"sport": "treadmill running", "id": 3}\n'
+            b"{'sport': 'run', 'id': 2}\n{\"sport\": \"run\", \"id\": 3}\n"
         )
         self.source.write_bytes(
-            b"{'sport': 'bike'}\n" + self.selected + b"{'sport': 'walk'}\n"
+            b"{'sport': 'bike'}\n"
+            + self.selected
+            + b"{'sport': 'treadmill running'}\n{'sport': 'walk'}\n"
         )
 
     def filter_fixture(self, **kwargs: bool) -> dict[str, object]:
