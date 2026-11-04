@@ -8,7 +8,7 @@ import contextlib
 import gzip
 import hashlib
 import io
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tempfile
 import unittest
@@ -40,7 +40,7 @@ class GzipExtractionTests(unittest.TestCase):
             + b"{'sport': 'walk', 'id': 4}\n"
         )
 
-    def filter_fixture(self, **kwargs) -> dict[str, object]:
+    def filter_fixture(self, **kwargs: bool) -> dict[str, object]:
         """Filter the fixture and suppress progress output in test logs."""
         with contextlib.redirect_stdout(io.StringIO()):
             return filter_running(self.source, self.archive, **kwargs)
@@ -51,13 +51,12 @@ class GzipExtractionTests(unittest.TestCase):
         extracted = gzip.decompress(self.archive.read_bytes())
         self.assertEqual(extracted, self.selected)
         workouts = [
-            ast.literal_eval(line.decode())
-            for line in extracted.splitlines()
+            ast.literal_eval(line.decode()) for line in extracted.splitlines()
         ]
         self.assertEqual([row["id"] for row in workouts], [2, 3])
         result = validate_gzip(
             self.archive,
-            expected_sha256=summary["uncompressed_sha256"],
+            expected_sha256=str(summary["uncompressed_sha256"]),
             expected_records=2,
         )
         self.assertEqual(result["uncompressed_bytes"], len(self.selected))
@@ -77,10 +76,13 @@ class GzipExtractionTests(unittest.TestCase):
         """Create processed storage while preserving the original source."""
         original = self.source.read_bytes()
         processed = self.directory / "model-training" / "processed"
-        with patch(
-            "scripts.endomondo_filter_running_workouts.PROCESSED_DIRECTORY",
-            processed,
-        ), contextlib.redirect_stdout(io.StringIO()):
+        with (
+            patch(
+                "scripts.endomondo_filter_running_workouts.PROCESSED_DIRECTORY",
+                processed,
+            ),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             result = filter_running(self.source)
         archive = processed / (self.source.name + ".gz")
         self.assertEqual(result["destination"], str(archive))
@@ -90,9 +92,12 @@ class GzipExtractionTests(unittest.TestCase):
     def test_output_in_raw_directory_is_rejected(self) -> None:
         """Reject explicit destinations inside raw storage."""
         raw = self.directory / "raw"
-        with patch(
-            "scripts.endomondo_filter_running_workouts.RAW_DIRECTORY", raw
-        ), self.assertRaisesRegex(ValueError, "raw storage"):
+        with (
+            patch(
+                "scripts.endomondo_filter_running_workouts.RAW_DIRECTORY", raw
+            ),
+            self.assertRaisesRegex(ValueError, "raw storage"),
+        ):
             filter_running(self.source, raw / "nested" / "running.json.gz")
         self.assertFalse(raw.exists())
 
@@ -151,7 +156,8 @@ class GzipExtractionTests(unittest.TestCase):
         """Return a failure status for use in automated checks."""
         self.filter_fixture()
         validator = Path(__file__).with_name("validate_gzip_extraction.py")
-        result = subprocess.run(
+        # Fixed interpreter and local test paths; no shell or external input.
+        result = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(validator),
