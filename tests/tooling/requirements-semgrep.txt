@@ -1,0 +1,2 @@
+# Semgrep runs separately on Linux to isolate its tooling dependencies.
+semgrep==1.183.0

@@ -1,7 +1,9 @@
 """Filter Endomondo records into a deterministic gzip archive.
 
 The input contains one Python dictionary or JSON object per line. Selected
-records retain their original bytes. Use tests/validate_gzip_extraction.py
+outdoor runs retain their original bytes. Original sources belong in raw;
+generated archives default to the sibling processed directory.
+Use tests/validate_gzip_extraction.py
 to independently check extraction against the reported SHA-256 checksum.
 """
 
@@ -17,8 +19,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 SPORT = re.compile(rb"['\"]sport['\"]\s*:\s*(['\"])(.*?)\1")
-RUNNING = {b"run", b"treadmill running"}
+RUNNING = {b"run"}
 LFS_SIZE_LIMIT = 2 * 1024**3
+PROGRESS_INTERVAL = 100_000
+REPLACE_ATTEMPTS = 7
+DATA_DIRECTORY = (
+    Path(__file__).resolve().parents[1] / "training-data" / "model-training"
+)
+RAW_DIRECTORY = DATA_DIRECTORY / "raw"
+PROCESSED_DIRECTORY = DATA_DIRECTORY / "processed"
 
 
 @dataclass
@@ -76,7 +85,7 @@ def _write_archive(
                     digest.update(line)
                     selection.kept[sport.decode("utf-8")] += 1
                     selection.uncompressed_bytes += len(line)
-                if number % 100_000 == 0:
+                if number % PROGRESS_INTERVAL == 0:
                     print(
                         f"{source.name}: scanned {number:,} records",
                         flush=True,
@@ -87,31 +96,56 @@ def _write_archive(
 
 def _publish_archive(temporary: Path, destination: Path) -> None:
     """Retry transient Windows file locks with bounded exponential backoff."""
-    for attempt in range(7):
+    for attempt in range(REPLACE_ATTEMPTS):
         try:
             temporary.replace(destination)
             return
         except PermissionError:
-            if attempt == 6:
+            if attempt == REPLACE_ATTEMPTS - 1:
                 raise
             time.sleep(0.1 * 2**attempt)
 
 
 def filter_running(
     source: str | Path,
-    destination: str | Path,
+    destination: str | Path | None = None,
     *,
     allow_truncated_tail: bool = False,
 ) -> dict[str, object]:
-    """Filter outdoor and treadmill runs and report source-byte statistics.
+    """Write outdoor runs to processed storage and return statistics.
 
-    Replace the destination after filtering and checking the archive size.
-    Errors leave an existing destination intact. Recovery of a malformed final
-    record is opt-in for historical sources that end mid-record.
+    Args:
+        source: Path to uncompressed, line-delimited Endomondo records.
+        destination: Optional output gzip path. Defaults to processed/<name>.gz
+            beneath training-data/model-training. Outputs inside raw storage
+            are rejected to protect original sources.
+        allow_truncated_tail: Discard an invalid final record that has no
+            trailing newline.
+            This recovery option is intended for historical truncated sources.
+
+    Returns:
+        Record counts, compressed and uncompressed sizes, and the SHA-256 of
+        selected source bytes. Independent extraction validation belongs in
+        tests/validate_gzip_extraction.py. The filter does not reread output.
+
+    Raises:
+        ValueError: Output targets raw storage, paths coincide, sport fields
+            are ambiguous, no runs match, or the archive exceeds the LFS limit.
+        FileExistsError: A temporary output from another operation exists.
+        SyntaxError: The final record is invalid and recovery is disabled.
+        OSError: Reading, writing, or publishing the archive fails.
     """
-    source, destination = Path(source), Path(destination)
+    source = Path(source)
+    destination = (
+        PROCESSED_DIRECTORY / f"{source.name}.gz"
+        if destination is None
+        else Path(destination)
+    )
     if source.resolve() == destination.resolve():
         raise ValueError("Source and destination must differ")
+    if destination.resolve().is_relative_to(RAW_DIRECTORY.resolve()):
+        raise ValueError("Filtered output must not be written to raw storage")
+    destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(destination.name + ".tmp")
     if temporary.exists():
         raise FileExistsError(temporary)
@@ -147,8 +181,13 @@ def filter_running(
 def main() -> None:
     """Parse source and destination paths and print a JSON filter summary."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path)
-    parser.add_argument("destination", type=Path)
+    parser.add_argument("source", type=Path, help="Uncompressed source file")
+    parser.add_argument(
+        "destination",
+        type=Path,
+        nargs="?",
+        help="Gzip output (default: model-training/processed/<name>.gz)",
+    )
     args = parser.parse_args()
     filter_running(args.source, args.destination)
 
