@@ -1,6 +1,26 @@
 # Final running dataset development plan
 
-Status: planning only. No dataset construction or weather requests have started.
+Status: combined intermediate dataset built on `dataset-combination`.
+The user requested a combined archive and explicitly chose null weather fields
+for a separate enrichment step. No weather API requests are part of this build.
+
+## Current implementation scope
+
+- Stream HR and Meta into a temporary SQLite join; write one deterministic
+  gzip JSON Lines archive in `processed/final/` without changing source data.
+- Preserve missing route/elevation values as null with local quality flags.
+  This intermediate output differs from the complete-case final publication
+  proposed below; training-ready publication remains a later stage.
+- Use recorded Meta duration for pace, with pause semantics unverified, and
+  uncorrected HR altitude for distance-weighted mean elevation. Further source
+  verification and quality auditing remain explicit follow-up tasks.
+- Add fixture tests and an independent schema, checksum, and count validator.
+
+Build result: 117,839 rows; 63 rejected for invalid distance/duration. Weather
+remains null. Independent archive/schema/count checks and all pace calculations
+passed; 28 unit/smoke tests, Ruff, Pyright, Bandit, and Semgrep passed locally.
+Extreme source pace/elevation values remain for explicit quality filtering
+before training; this archive is not a certified clean training subset.
 
 ## Objective and scope
 
@@ -11,7 +31,8 @@ not as a default model input. Do not reintroduce running-history features.
 
 The user-requested behaviour guideline is `C:\home\AGENT_BEHAVIOUR_OUTLINE.md`.
 It requests this plan, alternatives, task-specific branches, and tests before
-commits. It does not authorize implementing or publishing the pipeline now.
+commits. The subsequent user request authorizes the combined-dataset build;
+remote publication and full weather enrichment are outside this step.
 
 ## Starting evidence
 

@@ -38,6 +38,19 @@ The fixture tests check gzip extraction, byte identity, checksums, corruption,
 truncated inputs, output determinism, size limits, and source-file protection.
 They neither download nor change the training datasets.
 
+Combined-dataset fixture tests cover joins, feature units/calculations,
+distance-weighted elevation, missing values, rejected records, duplicate IDs,
+deterministic output, and source protection. They also exercise the independent
+schema/checksum validator:
+
+```console
+python tests/validate_combined_dataset.py training-data/model-training/processed/final/running.json.gz
+```
+
+This checks every JSON row, ordered unique IDs, basic value constraints, gzip
+integrity, the compressed checksum, and build-count reconciliation. It does not
+certify GPS accuracy, source unit conventions, or weather completeness.
+
 Keep application-code fixes on their relevant feature branch. This test branch
 is based on the filtering branch so these checks can exercise its current code.
 CI checks formatting; it does not rewrite source files.

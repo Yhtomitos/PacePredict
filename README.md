@@ -44,6 +44,13 @@ The filter writes a deterministic gzip archive and prints a JSON summary with
 the selected record counts and an `uncompressed_sha256` checksum. It does not
 decompress the archive again during filtering.
 
+To join both outdoor-run archives into the pace-prediction schema, run
+`python scripts/endomondo_combine_datasets.py`. The combined output is
+`training-data/model-training/processed/final/running.json.gz`.
+Temperature and humidity remain null for the separate weather-enrichment step.
+See the [combined schema and validation notes](training-data/model-training/processed/README.md#combined-schema-dataset)
+for feature definitions, quality limitations, and companion artifacts.
+
 ## Extraction validation and tests
 
 Validation tools and automated tests live in `tests/`. Check a gzip archive
