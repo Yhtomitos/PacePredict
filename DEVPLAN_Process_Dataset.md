@@ -1,5 +1,12 @@
 # Final running dataset development plan
 
+Current model-development decisions are in [DEVPLAN.md](DEVPLAN.md). That plan
+retains two separate tracks: distance-weighted nearest-neighbor regression and
+Gaussian-mixture workout-context features with tree-based regression. Earlier
+notes below about excluding all history features describe prior scope; the new
+plan permits explicitly time-bounded history with leakage controls. Exported
+manuscript context is in `INTERIM_RESEARCH_CONTEXT.txt`.
+
 ## Storage cleanup
 
 The complete joined archive and its build manifest are now the retained
