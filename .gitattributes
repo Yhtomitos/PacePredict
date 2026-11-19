@@ -1,2 +1,1 @@
-training-data/model-training/processed/*.json.gz filter=lfs diff=lfs merge=lfs -text
 training-data/model-training/processed/final/*.json.gz filter=lfs diff=lfs merge=lfs -text

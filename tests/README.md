@@ -40,8 +40,9 @@ They neither download nor change the training datasets.
 
 Combined-dataset fixture tests cover joins, feature units/calculations,
 distance-weighted elevation, missing values, rejected records, duplicate IDs,
-deterministic output, and source protection. They also exercise the independent
-schema/checksum validator:
+deterministic output, and source protection. These tests use fixtures; the
+superseded reduced dataset is no longer retained. If explicitly regenerated,
+it can be checked with the independent schema/checksum validator:
 
 ```console
 python tests/validate_combined_dataset.py training-data/model-training/processed/final/running.json.gz
@@ -50,6 +51,17 @@ python tests/validate_combined_dataset.py training-data/model-training/processed
 This checks every JSON row, ordered unique IDs, basic value constraints, gzip
 integrity, the compressed checksum, and build-count reconciliation. It does not
 certify GPS accuracy, source unit conventions, or weather completeness.
+
+The complete-record join has separate fixtures for source-field preservation,
+unmatched workouts, duplicate and mismatched identifiers, and output protection.
+Validate its full archive independently with:
+
+```console
+python tests/validate_joined_workouts.py training-data/model-training/processed/final/workouts.json.gz
+```
+
+This checks nested source identities, outdoor sport, uniqueness, counts, gzip
+integrity, and checksum without applying training-feature cleaning rules.
 
 Keep application-code fixes on their relevant feature branch. This test branch
 is based on the filtering branch so these checks can exercise its current code.

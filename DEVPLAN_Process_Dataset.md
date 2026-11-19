@@ -1,5 +1,38 @@
 # Final running dataset development plan
 
+## Storage cleanup
+
+The complete joined archive and its build manifest are now the retained
+processed artifacts. Removed the separate outdoor HR/Meta inputs and the older
+reduced `running` archive, report, and provenance: 1,506,284,738 bytes reclaimed
+from working files. Both original raw gzip archives are preserved, including
+Meta-only workouts not present in the join. Input/reduced artifacts can be
+regenerated when needed and are ignored to avoid retaining redundant copies.
+Historical Git/LFS storage is unchanged. Earlier sections below describe build
+history and planned follow-up work, not a current inventory of retained files.
+
+## Complete-record join on refine-dataset
+
+The user requested complete HR and Meta information together before clustering.
+Implement on the current `refine-dataset` branch, as explicitly requested.
+
+- Join the existing outdoor archives by workout ID using disk-backed storage.
+- Preserve every source field in separate `hr` and `meta` dictionaries; reject
+  inconsistent users and duplicate IDs rather than overwriting source values.
+- Write `processed/final/workouts.json.gz`, retaining matches regardless of
+  training-target validity, and keep earlier datasets intact.
+- Test complete source preservation, unmatched counts, duplicates, mismatches,
+  deterministic output, source protection, and independent archive validation.
+- Run the full join, validate all row identities/counts/checksum, and document
+  results. Weather enrichment and effort modelling remain separate tasks.
+
+Build result: 117,902 matches, no unmatched HR workouts, and 229,656 unmatched
+Meta workouts. Complete source dictionaries are preserved in a 1,164,614,265-byte
+gzip archive. No additional cleaning or weather enrichment was applied.
+Independent validation passed for all 117,902 rows, each with a heart-rate
+array, including identifier consistency, uniqueness, counts, checksum, and gzip
+integrity. All 35 tests, Ruff, Pyright, Bandit, and Semgrep passed locally.
+
 Status: combined intermediate dataset built on `dataset-combination`.
 The user requested a combined archive and explicitly chose null weather fields
 for a separate enrichment step. No weather API requests are part of this build.
