@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "status": "joined_unfiltered",
+  "fields": [
+    "workout_id",
+    "user_id",
+    "hr",
+    "meta"
+  ],
+  "hr_records": 117902,
+  "meta_records": 347558,
+  "matched_workouts": 117902,
+  "unmatched_hr": 0,
+  "unmatched_meta": 229656,
+  "source_sha256": {
+    "hr": "226f2b2cdc1521d8c261b67cf2c277d3fe5a8d42a1ef99afb1a0ce893c13711b",
+    "meta": "2ffca7250b6ce9a975a7a61fc6e848a7b82934ffb01869eebf36467e815cfc84"
+  },
+  "output_sha256": "c51b2e9c3094b2dd07fbef4234b23a9e6227f9e6d8424882c36cbc9a149c34e3",
+  "record_order": "Meta source order; join by workout_id, not line number",
+  "weather": "Original Meta weather preserved; no external enrichment",
+  "cleaning": "No pace, duration, elevation, or heart-rate filtering"
+}
