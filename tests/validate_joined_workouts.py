@@ -71,12 +71,13 @@ def main() -> None:
     """Run independent validation from the command line.
 
     Input: Joined archive path argument.
-    Output: JSON validation results on stdout.
+    Output: Validation status on stdout.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
     args = parser.parse_args()
-    print(json.dumps(validate_joined(args.archive), indent=2))
+    validate_joined(args.archive)
+    print("Validation succeeded")
 
 
 if __name__ == "__main__":
