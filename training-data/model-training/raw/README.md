@@ -18,7 +18,9 @@ by Git; the HR archive exceeds GitHub's 2 GiB LFS per-file limit. On this checko
 were restored from the complete original objects retained in `.git/lfs/objects`.
 Fresh clones must obtain the original datasets separately or retrieve those
 historical LFS objects if the remote retains them; `git lfs pull` at the current
-revision only downloads the tracked processed data.
+revision downloads the tracked joined `processed/final/workouts.json.gz`.
 
 Keep these sources unchanged. Run the filter to write outdoor-running records
 to `../processed/`; treadmill running and all other sports are excluded.
+These separate outdoor archives are temporary rebuild inputs and are removed
+after joining to save storage; the original raw archives remain preserved here.

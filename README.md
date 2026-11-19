@@ -1,72 +1,60 @@
 # PacePredict
-PacePredict is a running pace estimator that works off a trained regression model.
+
+PacePredict is a running pace estimator built around a regression model.
 
 ## Training data
 
-Datasets are separated by processing stage under `training-data/model-training/`:
+Retained datasets live under `training-data/model-training/`:
 
-- `raw/endomondoHR.json.gzip` and `raw/endomondoMeta.json.gzip` contain the original,
-  unfiltered records. They stay local and are ignored by Git; the HR archive
-  exceeds GitHub's per-file limit. See [raw source notes](training-data/model-training/raw/README.md).
-- `processed/endomondoHR.json.gz` and `processed/endomondoMeta.json.gz` contain
-  outdoor runs only (`sport == "run"`), excluding treadmill running. These gzip
-  archives are tracked by Git LFS. Run `git lfs pull` after cloning to download
-  them. See [processed data notes](training-data/model-training/processed/README.md).
+- `raw/endomondoHR.json.gzip` and `raw/endomondoMeta.json.gzip` preserve the
+  original unfiltered data locally. They are ignored by Git.
+- `processed/final/workouts.json.gz` is the complete outdoor-workout join,
+  containing **117,902 workouts**, tracked through Git LFS.
+- `processed/final/workouts.json.build.json` records counts and checksums.
 
-Records retain the source's line-delimited Python dictionary syntax. Read them
-one at a time to avoid loading the whole dataset into memory:
+Run `git lfs pull` after cloning to download the tracked joined archive.
+Read its strict JSON Lines format one object at a time:
 
 ```python
-import ast
 import gzip
+import json
 
-path = "training-data/model-training/processed/endomondoHR.json.gz"
+path = "training-data/model-training/processed/final/workouts.json.gz"
 with gzip.open(path, "rt", encoding="utf-8") as source:
     for line in source:
-        workout = ast.literal_eval(line)
-        # Process the running workout here.
+        workout = json.loads(line)
+        heart_rate = workout["hr"]["heart_rate"]
+        distance = workout["meta"]["distance"]
 ```
 
-To regenerate processed datasets, first extract the raw `.gzip` archives to
-`raw/endomondoHR.json` and `raw/endomondoMeta.json`, then run:
+Each object preserves the complete `hr` and `meta` source records, matched by
+workout ID and checked for matching user IDs. Coordinates, timestamps, sensor
+arrays, and original weather metadata are in the same object. Further cleaning
+and external temperature/humidity enrichment remain separate steps.
+
+Separate processed HR/Meta archives and the superseded reduced `running`
+artifacts have been removed to save storage. Rebuild inputs are temporary local
+intermediates; see [processed data notes](training-data/model-training/processed/README.md)
+and [raw source notes](training-data/model-training/raw/README.md).
+
+## Validation and tests
+
+Validate joined identities, counts, checksum, and gzip integrity:
 
 ```console
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoHR.json
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoMeta.json
+python tests/validate_joined_workouts.py training-data/model-training/processed/final/workouts.json.gz
 ```
 
-The output defaults to `training-data/model-training/processed/<source-name>.gz`.
-The script creates the directory if needed and preserves the raw input. An
-optional second argument selects a different output path; writing filtered
-output into the repository's `raw` directory is rejected.
-
-The filter writes a deterministic gzip archive and prints a JSON summary with
-the selected record counts and an `uncompressed_sha256` checksum. It does not
-decompress the archive again during filtering.
-
-## Extraction validation and tests
-
-Validation tools and automated tests live in `tests/`. Check a gzip archive
-without writing an extracted copy to disk:
+For gzip integrity and extracted-byte counts alone:
 
 ```console
-python tests/validate_gzip_extraction.py training-data/model-training/processed/endomondoHR.json.gz
+python tests/validate_gzip_extraction.py training-data/model-training/processed/final/workouts.json.gz --expected-records 117902
 ```
 
-To also check that extraction matches the filter's selected source bytes, pass
-its `uncompressed_sha256` value and the sum of its `kept` record counts:
-
-```console
-python tests/validate_gzip_extraction.py running.json.gz --expected-sha256 HASH --expected-records COUNT
-```
-
-Replace `HASH` and `COUNT` with the filter summary values. The validator streams
-the archive, checks gzip integrity, and reports its extracted SHA-256, byte count,
-and record count. It exits with a nonzero status if extraction fails or an
-expected value differs. It does not validate individual workout fields.
-
-Run the small fixture tests without downloading or modifying the real datasets:
+Run fixture tests without downloading or modifying real datasets:
 
 ```console
 python -B -m unittest discover -s tests -v
 ```
+
+Static-analysis tools and CI instructions are documented in [tests/README.md](tests/README.md).

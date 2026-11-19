@@ -4,6 +4,15 @@
 
 # Interrupted processing must not add incomplete archives to Git.
 /training-data/model-training/processed/*.tmp
+/training-data/model-training/processed/**/.combine-*/
+/training-data/model-training/processed/final/.*.tmp
+# Local lookup coordinates and per-workout quality provenance.
+/training-data/model-training/processed/final/*.provenance.jsonl.gz
+# Regenerable inputs and superseded prediction-feature artifacts.
+/training-data/model-training/processed/endomondoHR.json.gz
+/training-data/model-training/processed/endomondoMeta.json.gz
+/training-data/model-training/processed/final/running.json.gz
+/training-data/model-training/processed/final/running.json.build.json
 
 .venv*/
 __pycache__/
