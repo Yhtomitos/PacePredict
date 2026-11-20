@@ -19,6 +19,8 @@ def validate_joined(path: Path) -> dict[str, Any]:
     Output: Workout count and records containing heart-rate arrays.
     """
     report = json.loads(path.with_suffix(".build.json").read_text())
+    if report.get("schema_version") != 2:
+        raise ValueError("Expected flattened schema version 2")
     digest = hashlib.sha256()
     with path.open("rb") as source:
         while chunk := source.read(1024 * 1024):
@@ -30,13 +32,11 @@ def validate_joined(path: Path) -> dict[str, Any]:
     with gzip.open(path, "rt", encoding="utf-8") as source:
         for line in source:
             row = json.loads(line)
-            if set(row) != {"workout_id", "user_id", "hr", "meta"}:
-                raise ValueError("Unexpected joined schema")
             validate_sources(row)
             if row["workout_id"] in seen:
                 raise ValueError("Duplicate joined workout")
             seen.add(row["workout_id"])
-            heart_rate_records += isinstance(row["hr"].get("heart_rate"), list)
+            heart_rate_records += isinstance(row.get("heart_rate"), list)
     matches = len(seen)
     if matches != report["matched_workouts"]:
         raise ValueError("Joined count differs from build report")
@@ -47,21 +47,29 @@ def validate_joined(path: Path) -> dict[str, Any]:
 
 
 def validate_sources(row: dict[str, Any]) -> None:
-    """Check embedded record identity without imposing feature cleaning.
+    """Check flat record identity and removed fields without feature cleaning.
 
     Input: Joined workout object.
-    Output: None; inconsistent embedded dictionaries raise ValueError.
+    Output: None; invalid schema or identifier aliases raise ValueError.
     """
-    for key in ("hr", "meta"):
-        record = row[key]
-        if not isinstance(record, dict):
-            raise ValueError("Expected embedded source dictionary")
-        if record.get("id") != row["workout_id"]:
-            raise ValueError("Embedded workout ID mismatch")
-        if record.get("userId") != row["user_id"]:
-            raise ValueError("Embedded user ID mismatch")
-        if record.get("sport") != "run":
-            raise ValueError("Embedded workout is not outdoor running")
+    required = {
+        "workout_id",
+        "user_id",
+        "id",
+        "userId",
+        "sport",
+        "hr_timestamp",
+        "workout_timestamp",
+    }
+    forbidden = {"hr", "meta", "timestamp", "calories", "hydration", "weather"}
+    if not required.issubset(row) or forbidden.intersection(row):
+        raise ValueError("Unexpected flattened schema")
+    if row["id"] != row["workout_id"]:
+        raise ValueError("Workout ID mismatch")
+    if row["userId"] != row["user_id"]:
+        raise ValueError("user ID mismatch")
+    if row["sport"] != "run":
+        raise ValueError("Workout is not outdoor running")
     for key in ("workout_id", "user_id"):
         if type(row[key]) is not int or row[key] < 0:
             raise ValueError("Invalid joined identifier")

@@ -1,7 +1,7 @@
-"""Join complete HR and Meta records by workout ID without feature filtering.
+"""Join HR and Meta records into flattened outdoor workout objects.
 
 Input: Outdoor-running HR and Meta gzip source archives.
-Output: One gzip JSON Lines file retaining both records for every match.
+Output: One gzip JSON Lines file with Meta precedence and distinct timestamps.
 """
 
 import argparse
@@ -22,12 +22,23 @@ from .endomondo_combine_datasets import (
     sha256,
 )
 
+REMOVED_FIELDS = {"calories", "hydration", "weather"}
+REQUIRED_FIELDS = [
+    "workout_id",
+    "user_id",
+    "id",
+    "userId",
+    "sport",
+    "hr_timestamp",
+    "workout_timestamp",
+]
+
 
 def joined_record(hr: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
-    """Preserve complete matching source dictionaries without field collisions.
+    """Flatten matching records, giving Meta precedence except for timestamps.
 
     Input: HR and Meta records for an outdoor workout.
-    Output: Identifiers and original source dictionaries; mismatches raise.
+    Output: Flat object with renamed timestamps and unwanted fields removed.
     """
     workout_id = identifier(hr.get("id"))
     user_id = identifier(hr.get("userId"))
@@ -37,12 +48,18 @@ def joined_record(hr: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("User IDs differ")
     if hr.get("sport") != "run" or meta.get("sport") != "run":
         raise ValueError("Expected outdoor running records")
-    return {
-        "workout_id": workout_id,
-        "user_id": user_id,
-        "hr": hr,
-        "meta": meta,
-    }
+    result = {**hr, **meta}
+    for key in REMOVED_FIELDS | {"timestamp"}:
+        result.pop(key, None)
+    result.update(
+        {
+            "workout_id": workout_id,
+            "user_id": user_id,
+            "hr_timestamp": hr.get("timestamp"),
+            "workout_timestamp": meta.get("timestamp"),
+        }
+    )
+    return result
 
 
 def index_hr(connection: sqlite3.Connection, path: Path) -> int:
@@ -152,9 +169,11 @@ def join_workouts(
             hr_count = index_hr(connection, hr_path)
             counts = write_matches(connection, meta_path, staging / "data.gz")
         report = {
-            "schema_version": 1,
-            "status": "joined_unfiltered",
-            "fields": ["workout_id", "user_id", "hr", "meta"],
+            "schema_version": 2,
+            "status": "joined_flattened",
+            "required_fields": REQUIRED_FIELDS,
+            "overlap_precedence": "Meta overwrites HR except timestamps",
+            "removed_fields": sorted(REMOVED_FIELDS),
             "hr_records": hr_count,
             **counts,
             "source_sha256": {
@@ -164,9 +183,6 @@ def join_workouts(
             "output_sha256": sha256(staging / "data.gz"),
             "record_order": (
                 "Meta source order; join by workout_id, not line number"
-            ),
-            "weather": (
-                "Original Meta weather preserved; no external enrichment"
             ),
             "cleaning": (
                 "No pace, duration, elevation, or heart-rate filtering"

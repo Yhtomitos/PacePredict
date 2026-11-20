@@ -60,8 +60,31 @@ Validate its full archive independently with:
 python tests/validate_joined_workouts.py training-data/model-training/processed/final/workouts.json.gz
 ```
 
-This checks nested source identities, outdoor sport, uniqueness, counts, gzip
-integrity, and checksum without applying training-feature cleaning rules.
+This checks flattened schema/identifier aliases, outdoor sport, uniqueness,
+counts, gzip integrity, and checksum without applying training-feature cleaning
+rules.
+The flattening script now creates schema-version-3 workout summaries from
+nested (version 1) or flat (version 2) joined archives. Fixtures check conversion
+to miles and minutes per mile, trapezoidal time-weighted heart rate, null
+handling, deterministic output, source protection, and failed-conversion safety.
+The joined-archive validator above applies to version 2, not summary outputs.
+
+```console
+python -m scripts.endomondo_flatten_workouts training-data/model-training/processed/final/workouts.json.gz --output training-data/model-training/processed/final/planned-workouts.json.gz
+```
+
+Summary fields are `workout_id`, `user_id`, `started_at_utc`, `distance_miles`,
+`latitude`, `longitude`, `elevation_gain_m`, `elevation_loss_m`,
+`average_heart_rate_bpm`, `temperature_c`, `relative_humidity_pct`, and
+`pace_min_per_mile`. Coordinates are the first valid paired HR coordinates;
+start time is the first HR timestamp converted to UTC. Source distance is
+interpreted as kilometres, duration as seconds, and ascent/descent as metres.
+Invalid/missing features and targets remain null; rows are not dropped.
+Heart rate requires aligned, positive samples and strictly increasing times;
+its trapezoidal average includes recording gaps without gap correction.
+Weather remains null for separate enrichment. Measured average heart rate is
+retrospective and must not be assumed available before a planned run.
+Full arrays stay in the input archive when using a distinct output path.
 
 Keep application-code fixes on their relevant feature branch. This test branch
 is based on the filtering branch so these checks can exercise its current code.

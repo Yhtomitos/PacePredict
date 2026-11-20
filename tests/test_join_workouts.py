@@ -44,14 +44,7 @@ class JoinWorkoutsTests(unittest.TestCase):
             rows = [json.loads(line) for line in stream]
         self.assertEqual(
             rows,
-            [
-                {
-                    "workout_id": 1,
-                    "user_id": 2,
-                    "hr": hr,
-                    "meta": meta,
-                }
-            ],
+            [joined_record(hr, meta)],
         )
         self.assertEqual(report["matched_workouts"], 1)
         self.assertEqual(
@@ -83,12 +76,41 @@ class JoinWorkoutsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     joined_record(hr, meta)
 
-    def test_validator_rejects_embedded_identity_mismatch(self):
+    def test_validator_rejects_identity_mismatch(self):
         hr, meta = sources()
         row = joined_record(hr, meta)
-        row["meta"]["userId"] = 9
+        row["userId"] = 9
         with self.assertRaisesRegex(ValueError, "user ID"):
             validate_sources(row)
+
+    def test_flat_fields_meta_precedence_and_distinct_timestamps(self):
+        hr, meta = sources()
+        hr.update({"gender": "hr value", "calories": 10, "weather": {}})
+        meta.update(
+            {
+                "gender": "meta value",
+                "timestamp": ["UTC time"],
+                "hydration": 3,
+                "calories": 20,
+                "weather": {"type": 3},
+            }
+        )
+        before = json.dumps([hr, meta], sort_keys=True)
+        row = joined_record(hr, meta)
+        self.assertEqual(row["gender"], "meta value")
+        self.assertEqual(row["hr_timestamp"], hr["timestamp"])
+        self.assertEqual(row["workout_timestamp"], ["UTC time"])
+        self.assertEqual(row["altitude"], hr["altitude"])
+        for key in (
+            "hr",
+            "meta",
+            "timestamp",
+            "calories",
+            "hydration",
+            "weather",
+        ):
+            self.assertNotIn(key, row)
+        self.assertEqual(before, json.dumps([hr, meta], sort_keys=True))
 
     def test_duplicates_and_mismatches_do_not_publish(self):
         hr, meta = sources()

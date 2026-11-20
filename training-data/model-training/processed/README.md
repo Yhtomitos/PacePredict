@@ -3,20 +3,26 @@
 ## Retained dataset
 
 `final/workouts.json.gz` is the single retained processed dataset. It contains
-**117,902 complete matched outdoor workouts**, compressed to 1,164,614,265 bytes.
+**117,902 matched outdoor workouts** in flattened schema version 2.
+The current gzip archive is 1,155,506,001 bytes; its manifest records the new
+checksum and the previous nested archive's checksum for migration provenance.
 `final/workouts.json.build.json` is its build manifest, not another dataset.
 
-Each decompressed line is strict JSON with four top-level fields:
+Each decompressed line is a flat JSON object. Abbreviated illustrative schema:
 
 ```json
-{"workout_id": 123, "user_id": 456, "hr": {"id": 123, "userId": 456}, "meta": {"id": 123, "userId": 456}}
+{"workout_id": 123, "user_id": 456, "id": 123, "userId": 456, "sport": "run", "heart_rate": [120, 130], "hr_timestamp": [1400000000, 1400000010], "workout_timestamp": ["2014-05-13T16:53:20Z"], "distance": 5.0, "duration": 1800.0, "ascent": 30.0, "descent": 25.0}
 ```
 
-This shortened example shows structure only. Actual `hr` and `meta` objects
-retain every source field: heart-rate samples, timestamps, latitude, longitude,
-altitude, optional speed, distance, duration, ascent/descent, original weather,
-and other metadata. Separate namespaces preserve different timestamp formats
-and conflicting source values without silently overwriting either.
+The source dictionaries are merged at the top level, with Meta values taking
+precedence for shared names. Both timestamp arrays are preserved without format
+conversion: Meta `timestamp` becomes `workout_timestamp`, and HR `timestamp`
+becomes `hr_timestamp`. No `hr`/`meta` containers or generic `timestamp` remain.
+The source `id`/`userId` fields and existing `workout_id`/`user_id` aliases are
+retained and checked for agreement. `calories`, `hydration`, and `weather` are
+removed from the processed records. Heart rate, coordinates, altitude, optional
+speed, distance, duration, ascent/descent, and other retained fields stay intact.
+Original raw archives still preserve all source fields and conflicting values.
 
 Rows follow Meta source order. The inner join requires matching workout and
 user IDs and outdoor running (`sport == "run"`); duplicate IDs or inconsistent
@@ -31,7 +37,7 @@ weather values. Treat this as source material for cleaning and clustering,
 not as a training-ready feature matrix.
 
 Independent validation confirmed unique matched IDs, complete heart-rate
-arrays, consistent embedded identities, reconciled counts, checksum, and gzip
+arrays, consistent identifier aliases, reconciled counts, checksum, and gzip
 integrity. Validate it again with:
 
 ```console
@@ -50,6 +56,18 @@ Historical Git/LFS objects are separate from working files; this cleanup does
 not purge repository history or remote LFS storage.
 
 ## Rebuilding when needed
+
+Existing schema-version-1 nested archives can be migrated without regenerating
+large source intermediates. The following explicit command replaces the joined
+archive and updates its manifest after conversion succeeds:
+
+```console
+python -m scripts.endomondo_flatten_workouts training-data/model-training/processed/final/workouts.json.gz --output training-data/model-training/processed/final/workouts.json.gz --replace
+```
+
+The migration verifies the old checksum, workout/user identities, uniqueness,
+and row count, then publishes from temporary storage. It refuses an already-flat
+source. Fresh joins from the source inputs also emit flattened schema version 2.
 
 Regeneration is optional and recreates large temporary inputs. The filter
 currently expects uncompressed Python-dictionary records. Extract the original
