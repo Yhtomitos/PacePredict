@@ -34,34 +34,51 @@ python -m bandit -c tests/tooling/bandit.toml -r main.py scripts tests
 python -m pip_audit -r tests/tooling/requirements.txt --strict
 ```
 
-The fixture tests check gzip extraction, byte identity, checksums, corruption,
-truncated inputs, output determinism, size limits, and source-file protection.
-They neither download nor change the training datasets.
+The processor fixture tests cover raw filtering, workout-ID joins, summary
+units, null handling, malformed and oversized records, gzip truncation,
+determinism, source protection, and temporary-file cleanup. They never modify
+real datasets. Shared synthetic records live in `workout_fixtures.py`.
+Legacy joined migration has separate fixtures in `test_flatten_workouts.py`.
+The independent legacy validators remain available for existing archives;
+they do not validate schema-version-3 summaries.
 
-Combined-dataset fixture tests cover joins, feature units/calculations,
-distance-weighted elevation, missing values, rejected records, duplicate IDs,
-deterministic output, and source protection. These tests use fixtures; the
-superseded reduced dataset is no longer retained. If explicitly regenerated,
-it can be checked with the independent schema/checksum validator:
-
-```console
-python tests/validate_combined_dataset.py training-data/model-training/processed/final/running.json.gz
-```
-
-This checks every JSON row, ordered unique IDs, basic value constraints, gzip
-integrity, the compressed checksum, and build-count reconciliation. It does not
-certify GPS accuracy, source unit conventions, or weather completeness.
-
-The complete-record join has separate fixtures for source-field preservation,
-unmatched workouts, duplicate and mismatched identifiers, and output protection.
-Validate its full archive independently with:
+For the full pipeline, run one command from the repository root:
 
 ```console
-python tests/validate_joined_workouts.py training-data/model-training/processed/final/workouts.json.gz
+python -m scripts.endomondo_process_dataset
 ```
 
-This checks nested source identities, outdoor sport, uniqueness, counts, gzip
-integrity, and checksum without applying training-feature cleaning rules.
+Defaults read `raw/endomondoHR.json.gzip` and `raw/endomondoMeta.json.gzip`
+under `training-data/model-training/` and create
+`processed/final/planned-workouts.json.gz` plus its build manifest.
+Override paths with `--hr`, `--meta`, and `--output`. Both raw inputs must be
+gzip dictionary-lines archives. Only `sport == "run"` is selected in both;
+treadmill records are excluded. Matching uses workout IDs and verifies user
+IDs, with Meta precedence for overlapping fields. A temporary SQLite index
+keeps the join out of memory and is removed on success or failure. No filtered
+or joined intermediate archives are retained. Raw files and existing outputs
+are protected; choose a new output path to rebuild.
+
+`test_raw_workout_pipeline.py` tests the full pipeline with tiny raw fixtures,
+including counts, filtering, matching, duplicate IDs, source preservation,
+determinism, truncation, and cleanup. Legacy joined migration remains available:
+
+```console
+python -m scripts.endomondo_process_dataset training-data/model-training/processed/final/workouts.json.gz --output training-data/model-training/processed/final/planned-workouts.json.gz
+```
+
+Summary fields are `workout_id`, `user_id`, `started_at_utc`, `distance_miles`,
+`latitude`, `longitude`, `elevation_gain_m`, `elevation_loss_m`,
+`average_heart_rate_bpm`, `temperature_c`, `relative_humidity_pct`, and
+`pace_min_per_mile`. Coordinates are the first valid paired HR coordinates;
+start time is the first HR timestamp converted to UTC. Source distance is
+interpreted as kilometres, duration as seconds, and ascent/descent as metres.
+Invalid/missing features and targets remain null; rows are not dropped.
+Heart rate requires aligned, positive samples and strictly increasing times;
+its trapezoidal average includes recording gaps without gap correction.
+Weather remains null for separate enrichment. Measured average heart rate is
+retrospective and must not be assumed available before a planned run.
+Full arrays stay in the input archive when using a distinct output path.
 
 Keep application-code fixes on their relevant feature branch. This test branch
 is based on the filtering branch so these checks can exercise its current code.

@@ -1,11 +1,24 @@
 # Final running dataset development plan
 
-Current model-development decisions are in [DEVPLAN.md](DEVPLAN.md). That plan
-retains two separate tracks: distance-weighted nearest-neighbor regression and
-Gaussian-mixture workout-context features with tree-based regression. Earlier
-notes below about excluding all history features describe prior scope; the new
-plan permits explicitly time-bounded history with leakage controls. Exported
-manuscript context is in `INTERIM_RESEARCH_CONTEXT.txt`.
+## Flattened schema version 2
+
+Current branch: `flatten-workout-records`, created from updated `refine-dataset`
+at the user's request. Merge HR and Meta fields into one object with Meta taking
+precedence. Preserve timestamps as `workout_timestamp` (Meta) and `hr_timestamp`
+(HR); remove `calories`, `hydration`, and `weather`. Keep identifier aliases,
+sensor arrays, row order, and all matched workouts. Raw originals are untouched.
+
+- Update the fresh joiner and independent validator for the flattened schema.
+- Stream-migrate the retained nested archive with checksum/identity/count checks
+  and explicit replacement, avoiding regeneration of large source intermediates.
+- Test field precedence, timestamp preservation, removed fields, and safe failure.
+- Validate the final archive and update schema documentation. Earlier nested-schema
+  descriptions below are historical and superseded by this section.
+
+Completed migration: all 117,902 rows retained in a 1,155,506,001-byte archive.
+Independent full-file validation passed for schema, identifier aliases, unique
+IDs, reconciled counts, checksum, and gzip integrity. All 39 fixture tests,
+Ruff, formatting, Pyright, Bandit, and Semgrep passed. No raw sources changed.
 
 ## Storage cleanup
 

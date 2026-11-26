@@ -1,0 +1,36 @@
+{
+  "schema_version": 3,
+  "status": "weather_pending",
+  "hr_records": 117902,
+  "meta_records": 347558,
+  "matched_workouts": 117902,
+  "unmatched_hr": 0,
+  "unmatched_meta": 229656,
+  "source_sha256": {
+    "hr": "226f2b2cdc1521d8c261b67cf2c277d3fe5a8d42a1ef99afb1a0ce893c13711b",
+    "meta": "2ffca7250b6ce9a975a7a61fc6e848a7b82934ffb01869eebf36467e815cfc84"
+  },
+  "output_sha256": "54385f584ac4738ec7c50468718468aabb8a28098bb1f9cc46758982001f4c17",
+  "record_order": "Meta source order; join by workout_id, not line number",
+  "cleaning": "No pace, duration, elevation, or heart-rate filtering",
+  "required_fields": [
+    "workout_id",
+    "user_id",
+    "started_at_utc",
+    "distance_miles",
+    "latitude",
+    "longitude",
+    "elevation_gain_m",
+    "elevation_loss_m",
+    "average_heart_rate_bpm",
+    "temperature_c",
+    "relative_humidity_pct",
+    "pace_min_per_mile"
+  ],
+  "flattened_from_sha256": "2334ed9c6e97e635a2cd2df2c27d5da1cb8a174503d8ede7da0ab9ae0086b004",
+  "pace_definition": "duration seconds / 60 / distance miles",
+  "heart_rate_definition": "Trapezoidal BPM average; invalid arrays yield null; measured during workout, unavailable before a planned run",
+  "coordinate_definition": "First valid paired HR coordinates",
+  "missing_values": "Null; no imputation or row removal",
+  "weather_definition": "Null pending separate enrichment"
+}

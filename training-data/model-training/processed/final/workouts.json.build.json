@@ -1,12 +1,6 @@
 {
-  "schema_version": 1,
-  "status": "joined_unfiltered",
-  "fields": [
-    "workout_id",
-    "user_id",
-    "hr",
-    "meta"
-  ],
+  "schema_version": 2,
+  "status": "joined_flattened",
   "hr_records": 117902,
   "meta_records": 347558,
   "matched_workouts": 117902,
@@ -16,8 +10,23 @@
     "hr": "226f2b2cdc1521d8c261b67cf2c277d3fe5a8d42a1ef99afb1a0ce893c13711b",
     "meta": "2ffca7250b6ce9a975a7a61fc6e848a7b82934ffb01869eebf36467e815cfc84"
   },
-  "output_sha256": "c51b2e9c3094b2dd07fbef4234b23a9e6227f9e6d8424882c36cbc9a149c34e3",
+  "output_sha256": "2334ed9c6e97e635a2cd2df2c27d5da1cb8a174503d8ede7da0ab9ae0086b004",
   "record_order": "Meta source order; join by workout_id, not line number",
-  "weather": "Original Meta weather preserved; no external enrichment",
-  "cleaning": "No pace, duration, elevation, or heart-rate filtering"
+  "cleaning": "No pace, duration, elevation, or heart-rate filtering",
+  "required_fields": [
+    "workout_id",
+    "user_id",
+    "id",
+    "userId",
+    "sport",
+    "hr_timestamp",
+    "workout_timestamp"
+  ],
+  "overlap_precedence": "Meta overwrites HR except timestamps",
+  "removed_fields": [
+    "calories",
+    "hydration",
+    "weather"
+  ],
+  "flattened_from_sha256": "c51b2e9c3094b2dd07fbef4234b23a9e6227f9e6d8424882c36cbc9a149c34e3"
 }

@@ -3,20 +3,26 @@
 ## Retained dataset
 
 `final/workouts.json.gz` is the single retained processed dataset. It contains
-**117,902 complete matched outdoor workouts**, compressed to 1,164,614,265 bytes.
+**117,902 matched outdoor workouts** in flattened schema version 2.
+The current gzip archive is 1,155,506,001 bytes; its manifest records the new
+checksum and the previous nested archive's checksum for migration provenance.
 `final/workouts.json.build.json` is its build manifest, not another dataset.
 
-Each decompressed line is strict JSON with four top-level fields:
+Each decompressed line is a flat JSON object. Abbreviated illustrative schema:
 
 ```json
-{"workout_id": 123, "user_id": 456, "hr": {"id": 123, "userId": 456}, "meta": {"id": 123, "userId": 456}}
+{"workout_id": 123, "user_id": 456, "id": 123, "userId": 456, "sport": "run", "heart_rate": [120, 130], "hr_timestamp": [1400000000, 1400000010], "workout_timestamp": ["2014-05-13T16:53:20Z"], "distance": 5.0, "duration": 1800.0, "ascent": 30.0, "descent": 25.0}
 ```
 
-This shortened example shows structure only. Actual `hr` and `meta` objects
-retain every source field: heart-rate samples, timestamps, latitude, longitude,
-altitude, optional speed, distance, duration, ascent/descent, original weather,
-and other metadata. Separate namespaces preserve different timestamp formats
-and conflicting source values without silently overwriting either.
+The source dictionaries are merged at the top level, with Meta values taking
+precedence for shared names. Both timestamp arrays are preserved without format
+conversion: Meta `timestamp` becomes `workout_timestamp`, and HR `timestamp`
+becomes `hr_timestamp`. No `hr`/`meta` containers or generic `timestamp` remain.
+The source `id`/`userId` fields and existing `workout_id`/`user_id` aliases are
+retained and checked for agreement. `calories`, `hydration`, and `weather` are
+removed from the processed records. Heart rate, coordinates, altitude, optional
+speed, distance, duration, ascent/descent, and other retained fields stay intact.
+Original raw archives still preserve all source fields and conflicting values.
 
 Rows follow Meta source order. The inner join requires matching workout and
 user IDs and outdoor running (`sport == "run"`); duplicate IDs or inconsistent
@@ -31,7 +37,7 @@ weather values. Treat this as source material for cleaning and clustering,
 not as a training-ready feature matrix.
 
 Independent validation confirmed unique matched IDs, complete heart-rate
-arrays, consistent embedded identities, reconciled counts, checksum, and gzip
+arrays, consistent identifier aliases, reconciled counts, checksum, and gzip
 integrity. Validate it again with:
 
 ```console
@@ -49,39 +55,37 @@ working folder. Original raw archives and the joined archive are retained.
 Historical Git/LFS objects are separate from working files; this cleanup does
 not purge repository history or remote LFS storage.
 
-## Rebuilding when needed
+## Rebuilding the current modeling schema
 
-Regeneration is optional and recreates large temporary inputs. The filter
-currently expects uncompressed Python-dictionary records. Extract the original
-raw `.gzip` archives to their corresponding `.json` names before filtering.
-Process one source at a time and delete its extracted copy after validation
-when storage is limited. Keep the original compressed raw files unchanged.
+The single processor reads both original gzip archives, filters outdoor runs,
+joins by workout ID, checks user IDs, and writes schema-version-3 summaries:
 
 ```console
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoHR.json
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoMeta.json
+python -m scripts.endomondo_process_dataset
 ```
 
-The outputs default to `processed/endomondoHR.json.gz` (117,902 rows) and
-`processed/endomondoMeta.json.gz` (347,558 rows). They are now ignored local
-intermediates, rather than retained Git LFS datasets. Use the extraction
-validator with the filter's checksum and count before using regenerated inputs.
+It defaults to the original archives in `../raw/` and a new
+`final/planned-workouts.json.gz` with an adjacent build manifest. Override with
+`--hr`, `--meta`, and `--output`. Existing outputs and raw storage are protected.
+A temporary disk-backed SQLite index is removed after success or failure;
+no decompressed sources or intermediate datasets are retained.
 
-Once both inputs exist, build to a new output name because the builder protects
-existing outputs:
+The summary contains IDs, UTC start time, distance in miles, start coordinates,
+elevation gain/loss in metres, time-weighted average heart rate, temperature,
+humidity, and average pace in minutes per mile. Weather awaits enrichment;
+invalid measurements remain null. Measured heart rate is retrospective.
+The retained version-2 archive described above is unchanged by this code update.
+
+Optional migration from a previously joined version-1 or version-2 archive:
 
 ```console
-python -m scripts.endomondo_join_workouts --output training-data/model-training/processed/final/workouts-rebuilt.json.gz
+python -m scripts.endomondo_process_dataset final/workouts.json.gz --output final/summary.json.gz
 ```
 
-After independently validating the replacement archive, remove redundant
-intermediate copies again. The standard-library builder uses disk-backed
-SQLite storage, deterministic gzip compression level 1, and publication with
-normal destination-folder permissions.
-
-The reduced-feature builder and its tests remain available as optional tooling,
-but its outputs are no longer retained datasets. Their validators apply only
-if those optional outputs are explicitly regenerated.
+Paths in this example are relative to the current working directory. Use full
+repository-relative paths when running from the repository root. Migration
+checks the source manifest/checksum; only migration accepts `--replace`.
+The former separate filter, combine, join, and flatten scripts were removed.
 
 The upstream [FitRec dataset page](https://cseweb.ucsd.edu/~jmcauley/datasets/fitrec.html)
 describes academic-use and redistribution restrictions.

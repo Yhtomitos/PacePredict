@@ -23,14 +23,16 @@ path = "training-data/model-training/processed/final/workouts.json.gz"
 with gzip.open(path, "rt", encoding="utf-8") as source:
     for line in source:
         workout = json.loads(line)
-        heart_rate = workout["hr"]["heart_rate"]
-        distance = workout["meta"]["distance"]
+        heart_rate = workout["heart_rate"]
+        distance = workout["distance"]
 ```
 
-Each object preserves the complete `hr` and `meta` source records, matched by
-workout ID and checked for matching user IDs. Coordinates, timestamps, sensor
-arrays, and original weather metadata are in the same object. Further cleaning
-and external temperature/humidity enrichment remain separate steps.
+Each flat object merges HR and Meta records matched by workout ID and checked
+for matching user IDs. Meta values overwrite overlapping HR fields. The HR
+timestamp array is `hr_timestamp`; the Meta array is `workout_timestamp`.
+Coordinates and sensor arrays are top-level fields. `calories`, `hydration`,
+and `weather` are removed. Further cleaning and external temperature/humidity
+enrichment remain separate steps.
 
 Separate processed HR/Meta archives and the superseded reduced `running`
 artifacts have been removed to save storage. Rebuild inputs are temporary local
