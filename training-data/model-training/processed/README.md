@@ -55,51 +55,37 @@ working folder. Original raw archives and the joined archive are retained.
 Historical Git/LFS objects are separate from working files; this cleanup does
 not purge repository history or remote LFS storage.
 
-## Rebuilding when needed
+## Rebuilding the current modeling schema
 
-Existing schema-version-1 nested archives can be migrated without regenerating
-large source intermediates. The following explicit command replaces the joined
-archive and updates its manifest after conversion succeeds:
-
-```console
-python -m scripts.endomondo_flatten_workouts training-data/model-training/processed/final/workouts.json.gz --output training-data/model-training/processed/final/workouts.json.gz --replace
-```
-
-The migration verifies the old checksum, workout/user identities, uniqueness,
-and row count, then publishes from temporary storage. It refuses an already-flat
-source. Fresh joins from the source inputs also emit flattened schema version 2.
-
-Regeneration is optional and recreates large temporary inputs. The filter
-currently expects uncompressed Python-dictionary records. Extract the original
-raw `.gzip` archives to their corresponding `.json` names before filtering.
-Process one source at a time and delete its extracted copy after validation
-when storage is limited. Keep the original compressed raw files unchanged.
+The single processor reads both original gzip archives, filters outdoor runs,
+joins by workout ID, checks user IDs, and writes schema-version-3 summaries:
 
 ```console
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoHR.json
-python scripts/endomondo_filter_running_workouts.py training-data/model-training/raw/endomondoMeta.json
+python -m scripts.endomondo_process_dataset
 ```
 
-The outputs default to `processed/endomondoHR.json.gz` (117,902 rows) and
-`processed/endomondoMeta.json.gz` (347,558 rows). They are now ignored local
-intermediates, rather than retained Git LFS datasets. Use the extraction
-validator with the filter's checksum and count before using regenerated inputs.
+It defaults to the original archives in `../raw/` and a new
+`final/planned-workouts.json.gz` with an adjacent build manifest. Override with
+`--hr`, `--meta`, and `--output`. Existing outputs and raw storage are protected.
+A temporary disk-backed SQLite index is removed after success or failure;
+no decompressed sources or intermediate datasets are retained.
 
-Once both inputs exist, build to a new output name because the builder protects
-existing outputs:
+The summary contains IDs, UTC start time, distance in miles, start coordinates,
+elevation gain/loss in metres, time-weighted average heart rate, temperature,
+humidity, and average pace in minutes per mile. Weather awaits enrichment;
+invalid measurements remain null. Measured heart rate is retrospective.
+The retained version-2 archive described above is unchanged by this code update.
+
+Optional migration from a previously joined version-1 or version-2 archive:
 
 ```console
-python -m scripts.endomondo_join_workouts --output training-data/model-training/processed/final/workouts-rebuilt.json.gz
+python -m scripts.endomondo_process_dataset final/workouts.json.gz --output final/summary.json.gz
 ```
 
-After independently validating the replacement archive, remove redundant
-intermediate copies again. The standard-library builder uses disk-backed
-SQLite storage, deterministic gzip compression level 1, and publication with
-normal destination-folder permissions.
-
-The reduced-feature builder and its tests remain available as optional tooling,
-but its outputs are no longer retained datasets. Their validators apply only
-if those optional outputs are explicitly regenerated.
+Paths in this example are relative to the current working directory. Use full
+repository-relative paths when running from the repository root. Migration
+checks the source manifest/checksum; only migration accepts `--replace`.
+The former separate filter, combine, join, and flatten scripts were removed.
 
 The upstream [FitRec dataset page](https://cseweb.ucsd.edu/~jmcauley/datasets/fitrec.html)
 describes academic-use and redistribution restrictions.

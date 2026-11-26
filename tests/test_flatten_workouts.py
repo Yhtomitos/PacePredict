@@ -6,15 +6,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.endomondo_combine_datasets import sha256
-from scripts.endomondo_flatten_workouts import (
+from scripts.endomondo_process_dataset import (
     FIELDS,
     average_heart_rate,
     flatten_archive,
+    joined_record,
+    sha256,
     summarize_workout,
 )
-from scripts.endomondo_join_workouts import joined_record
-from tests.test_combine_datasets import sources
+from tests.workout_fixtures import sources
 
 
 class FlattenTests(unittest.TestCase):
